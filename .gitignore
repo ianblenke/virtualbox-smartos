@@ -1,6 +1,7 @@
 *.vdi
 *.img
 *.bz2
+*.pcap
 */Logs
 */*.vbox
 */*.vbox-prev

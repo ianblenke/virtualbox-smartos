@@ -92,7 +92,7 @@ $(TFTP_ROOT)/pxelinux.0:
 
 $(TFTP_ROOT)/pxelinux.cfg/default: root.password hostname
 	mkdir -p $(TFTP_ROOT)/pxelinux.cfg
-	( root_password=`cat root.password`; hostname=`cat hostname`; echo "DEFAULT menu.c32"; echo "prompt 0"; echo "timeout 1"; echo "label smartos"; echo "kernel mboot.c32"; echo "append platform/i86pc/kernel/amd64/unix -v -B console=text,standalone=true,noimport=true,root_shadow='"`openssl passwd -1 $$root_password`"',hostname=$$hostname --- platform/i86pc/amd64/boot_archive" ) > $@
+	( root_password=`cat root.password`; hostname=`cat hostname`; echo "DEFAULT menu.c32"; echo "prompt 0"; echo "timeout 1"; echo "label smartos"; echo "kernel mboot.c32"; echo "append platform/i86pc/kernel/amd64/unix -v -B console=text,smartos=true,root_shadow='"`openssl passwd -1 $$root_password`"',hostname=$$hostname --- platform/i86pc/amd64/boot_archive" ) > $@
 	touch $@
 
 dist_clean:

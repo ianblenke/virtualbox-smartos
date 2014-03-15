@@ -8,7 +8,6 @@ TFTP_ROOT:=$(BASE_FOLDER)/tftp
 VBOX_CONFIG=$(BASE_FOLDER)/$(VBOX_NAME)/$(VBOX_NAME).vbox
 DHCP:=on
 CIDR:=172.16.11.0/24
-TFTP_SERVER:=172.16.11.2
 SSH_PORT:=2223
 ROOT_PASSWORD:=vagrant
 HOSTNAME:=vagrant
@@ -42,7 +41,7 @@ $(VBOX_CONFIG): $(ZPOOL_VDI) root.password
 	VBoxManage modifyvm $(VBOX_NAME) --nictype1 82540EM
 	VBoxManage modifyvm $(VBOX_NAME) --nic1 nat --natpf1 "$(VBOX_NAME)_ssh,tcp,,$(SSH_PORT),,22" --natdnsproxy1 on --natdnshostresolver1 on
 	mkdir -p $(TFTP_ROOT)
-	VBoxManage modifyvm $(VBOX_NAME) --natnet1 $(CIDR) # --nattftpserver1 $(TFTP_SERVER)
+	VBoxManage modifyvm $(VBOX_NAME) --natnet1 $(CIDR)
 	VBoxManage modifyvm $(VBOX_NAME) --nattftpfile1 pxelinux.0 --nattftpprefix1 $(TFTP_ROOT)
 	VBoxManage modifyvm $(VBOX_NAME) --biosbootmenu disabled --boot1 net --boot2 net --boot3 net --boot4 net
 	VBoxManage modifyvm $(VBOX_NAME) --pae on --vtxvpid on --vtxux on --largepages on --nestedpaging on

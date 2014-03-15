@@ -47,6 +47,9 @@ $(VBOX_CONFIG): $(ZPOOL_VDI) root.password
 	VBoxManage modifyvm $(VBOX_NAME) --pae on --vtxvpid on --vtxux on --largepages on --nestedpaging on
 	VBoxManage modifyvm $(VBOX_NAME) --vram 10
 	VBoxManage modifyvm $(VBOX_NAME) --memory 4096
+	# For guest additions
+	VBoxManage storagectl $(VBOX_NAME) --name PIIX4 --add ide --controller PIIX4
+	VBoxManage storageattach $(VBOX_NAME) --storagectl PIIX4 --port 0 --device 0 --type dvddrive --medium emptydrive
 
 enable_trace:
 	VBoxManage modifyvm $(VBOX_NAME) --nictrace1 on --nictracefile1 $(BASE_FOLDER)/$(VBOX_NAME).pcap
@@ -97,4 +100,8 @@ $(TFTP_ROOT)/pxelinux.cfg/default: root.password hostname
 
 dist_clean:
 	rm -f package-$(VERSION).tgz $(TFTP_ROOT)
+
+
+install_chef:
+	ssh root@172.16.11.15 sudo bash -c 'cd /opt; wget http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 ; tar xvjf Chef-fatclient-SmartOS-10.14.2.tar.bz2 -C /'
 

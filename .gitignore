@@ -1,3 +1,4 @@
+.vagrant
 *.vdi
 *.img
 *.bz2
@@ -9,3 +10,4 @@
 tftp
 root.password
 hostname
+tmp

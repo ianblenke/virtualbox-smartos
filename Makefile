@@ -1,5 +1,5 @@
 VERSION:=latest
-VBOX_NAME:=smartos
+VBOX_NAME:=smartos-hypervisor
 ZPOOL_VDI:=Zpool.vdi
 ZPOOL_SIZE:=4096
 CONTROLLER_NAME:=sata1
@@ -25,13 +25,7 @@ $(ZPOOL_VDI):
 	VBoxManage createhd --filename $(ZPOOL_VDI) --size $(ZPOOL_SIZE) --format VDI --variant Standard
 	VBoxManage modifyhd $(ZPOOL_VDI) --type normal --compact
 
-root.password:
-	echo $(ROOT_PASSWORD) > $@
-
-hostname:
-	echo $(HOSTNAME) > $@
-
-$(VBOX_CONFIG): $(ZPOOL_VDI) root.password
+$(VBOX_CONFIG): $(ZPOOL_VDI)
 	make $(TFTP_ROOT)/pxelinux.0
 	VBoxManage createvm --name $(VBOX_NAME) --ostype Solaris11_64 --register --basefolder $(BASE_FOLDER)
 	VBoxManage storagectl $(VBOX_NAME) --name $(CONTROLLER_NAME) --add sata
@@ -93,15 +87,26 @@ $(TFTP_ROOT)/pxelinux.0:
 	rm -fr /tmp/syslinux-6.02
 	touch $@
 
-$(TFTP_ROOT)/pxelinux.cfg/default: root.password hostname
+$(TFTP_ROOT)/pxelinux.cfg/default:
 	mkdir -p $(TFTP_ROOT)/pxelinux.cfg
-	( root_password=`cat root.password`; hostname=`cat hostname`; echo "DEFAULT menu.c32"; echo "prompt 0"; echo "timeout 1"; echo "label smartos"; echo "kernel mboot.c32"; echo "append platform/i86pc/kernel/amd64/unix -v -B console=text,smartos=true,root_shadow='"`openssl passwd -1 $$root_password`"',hostname=$$hostname --- platform/i86pc/amd64/boot_archive" ) > $@
+	( echo "DEFAULT menu.c32"; echo "prompt 0"; echo "timeout 1"; echo "label smartos"; echo "kernel mboot.c32"; echo "append platform/i86pc/kernel/amd64/unix -v -B console=text,smartos=true,root_shadow='"`openssl passwd -1 $(ROOT_PASSWORD)`"',hostname=$(HOSTNAME) --- platform/i86pc/amd64/boot_archive" ) > $@
 	touch $@
 
 dist_clean:
-	rm -f package-$(VERSION).tgz $(TFTP_ROOT)
+	make clean || true
+	rm -f package-$(VERSION).tgz tftp $(VBOX_NAME) $(ZPOOL_VDI)
 
+add_host_to_ssh_config:
+	[ -f ~/.ssh/$(VBOX_NAME) ] || ssh-keygen -t rsa -b 2048 -f ~/.ssh/$(VBOX_NAME) -P ''
+	grep "Host $(VBOX_NAME)" ~/.ssh/config > /dev/null || \
+	( echo "Host $(VBOX_NAME)"; \
+	  echo "  User root"; \
+	  echo "  HostName localhost; \
+	  echo "  IdentityFile "~/.ssh/$(VBOX_NAME).pub"; \
+	  echo "  port 2223" ) >> ~/.ssh/config
 
-install_chef:
-	ssh root@172.16.11.15 sudo bash -c 'cd /opt; wget http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 ; tar xvjf Chef-fatclient-SmartOS-10.14.2.tar.bz2 -C /'
+install_vagrant_plugin:
+	/Applications/Vagrant/bin/vagrant plugin install --plugin-prerelease --plugin-source https://rubygems.org/ vagrant-smartos
+	/Applications/Vagrant/bin/vagrant box add smartos-dummy https://github.com/joshado/vagrant-smartos/raw/master/example_box/smartos.box
+	/Applications/Vagrant/bin/vagrant up
 

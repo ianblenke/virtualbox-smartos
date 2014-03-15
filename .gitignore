@@ -1,8 +1,11 @@
 *.vdi
 *.img
 *.bz2
+*.tgz
 *.pcap
 */Logs
 */*.vbox
 */*.vbox-prev
 tftp
+root.password
+hostname

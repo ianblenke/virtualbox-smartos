@@ -1,0 +1,7 @@
+*.vdi
+*.img
+*.bz2
+*/Logs
+*/*.vbox
+*/*.vbox-prev
+tftp

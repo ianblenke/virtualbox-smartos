@@ -11,6 +11,8 @@ CIDR:=172.16.11.0/24
 SSH_PORT:=2223
 ROOT_PASSWORD:=vagrant
 HOSTNAME:=vagrant
+SSH_IDENTITY:=~/.ssh/$(VBOX_NAME)
+SSH_AUTH_SOCK:=/dev/null
 
 # https://wiki.openstack.org/wiki/Smartos
 all: $(VBOX_CONFIG)
@@ -63,7 +65,6 @@ down:
 
 clean:
 	VBoxManage unregistervm $(VBOX_NAME)
-	#VBoxManage natnetwork remove -t nat-$(VBOX_NAME)-network
 	rm -f $(VBOX_CONFIG)
 
 showvminfo:
@@ -90,7 +91,6 @@ $(TFTP_ROOT)/pxelinux.0:
 $(TFTP_ROOT)/pxelinux.cfg/default:
 	mkdir -p $(TFTP_ROOT)/pxelinux.cfg
 	( echo "DEFAULT menu.c32"; echo "prompt 0"; echo "timeout 1"; echo "label smartos"; echo "kernel mboot.c32"; echo "append platform/i86pc/kernel/amd64/unix -v -B console=text,smartos=true,root_shadow='"`openssl passwd -1 $(ROOT_PASSWORD)`"',hostname=$(HOSTNAME) --- platform/i86pc/amd64/boot_archive" ) > $@
-	touch $@
 
 dist_clean:
 	make clean || true
@@ -98,23 +98,21 @@ dist_clean:
 
 bootstrap_global_domain:
 	# Generate a special virtualbox host key if one doesn't exist yet
-	[ -f ~/.ssh/$(VBOX_NAME) ] || ssh-keygen -t rsa -b 2048 -f ~/.ssh/$(VBOX_NAME) -P ''
+	[ -f ~/.ssh/$(VBOX_NAME) ] || ssh-keygen -t rsa -b 2048 -f $(SSH_IDENTITY) -C $(VBOX_NAME) -P ''
 	# If there is no ssh config stanza for this virtualbox host yet, then add it
 	grep "Host $(VBOX_NAME)" ~/.ssh/config > /dev/null || \
 	( echo "Host $(VBOX_NAME)"; \
 	  echo "  User root"; \
-	  echo "  HostName localhost; \
-	  echo "  IdentityFile "~/.ssh/$(VBOX_NAME).pub"; \
+	  echo "  HostName localhost"; \
+	  echo "  IdentityFile $(SSH_IDENTITY)"; \
 	  echo "  port 2223" ) >> ~/.ssh/config
 	echo "Enter '$(ROOT_PASSWORD)' when/if prompted for a password"
 	# Setup root key trust
-	scp -P ~/.ssh/$(VBOX_NAME).pub $(VBOX_NAME):.ssh/authorized_keys
+	scp $(SSH_IDENTITY).pub $(VBOX_NAME):.ssh/authorized_keys
 	# Install chef on the global domain (wise)
-	ssh $(VBOX_NAME) bash -c 'curl -k http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 | bzcat | tar xf - -C /'
+	ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 | bunzip2 | tar xf - -C /'
 	# Install pkgin on the global domain (unwise)
-	curl -k http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2013Q3-`uname -p`.tar.gz | gzcat | tar -xf - -C /
-	pkg_admin rebuild
-	pkgin -y up
+	ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2013Q3-`uname -p`.tar.gz | gunzip | /usr/bin/tar -xf - -C / && /opt/local/sbin/pkg_admin rebuild && /opt/local/bin/pkgin -y up'
 
 install_vagrant_plugin:
 	/Applications/Vagrant/bin/vagrant plugin install --plugin-prerelease --plugin-source https://rubygems.org/ vagrant-smartos

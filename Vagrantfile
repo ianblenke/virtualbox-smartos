@@ -1,9 +1,12 @@
 Vagrant.require_plugin "vagrant-smartos"
 
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'smartos'
+
 Vagrant.configure("2") do |config|
 
   # For the time being, use our dummy box
   config.vm.box = "smartos-dummy"
+  config.ssh.username = "root"
 
   config.vm.provider :smartos do |smartos, override|
     # Required: This is which hypervisor to provision the VM on.

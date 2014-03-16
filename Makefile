@@ -9,13 +9,19 @@ VBOX_CONFIG=$(BASE_FOLDER)/$(VBOX_NAME)/$(VBOX_NAME).vbox
 DHCP:=on
 CIDR:=172.16.11.0/24
 SSH_PORT:=2223
+HOSTNAME:=$(VBOX_NAME)
 ROOT_PASSWORD:=vagrant
-HOSTNAME:=vagrant
-SSH_IDENTITY:=~/.ssh/$(VBOX_NAME)
+SSH_IDENTITY:=~/.vagrant.d/insecure_private_key
 SSH_AUTH_SOCK:=/dev/null
 
 # https://wiki.openstack.org/wiki/Smartos
-all: $(VBOX_CONFIG)
+all:
+	@echo "Usage: make {target}"
+	@echo "Where {target} is one of"
+	@echo "    $(VBOX_NAME) - only spin up the virtualbox global zone"
+	@echo "    vagrant - as above, but additionally: spin up the vagrant zone"
+	@echo "    stop - act like someone pushed the power button: virtualbox will shut down global zone cleanly"
+	@echo "    start - start virtualbox global zone"
 
 #
 # http://wiki.smartos.org/display/DOC/Download+SmartOS
@@ -46,6 +52,7 @@ $(VBOX_CONFIG): $(ZPOOL_VDI)
 	# For guest additions
 	VBoxManage storagectl $(VBOX_NAME) --name PIIX4 --add ide --controller PIIX4
 	VBoxManage storageattach $(VBOX_NAME) --storagectl PIIX4 --port 0 --device 0 --type dvddrive --medium emptydrive
+	touch $@
 
 enable_trace:
 	VBoxManage modifyvm $(VBOX_NAME) --nictrace1 on --nictracefile1 $(BASE_FOLDER)/$(VBOX_NAME).pcap
@@ -97,24 +104,28 @@ dist_clean:
 	rm -f package-$(VERSION).tgz tftp $(VBOX_NAME) $(ZPOOL_VDI)
 
 bootstrap_global_domain:
+	make $(VBOX_CONFIG) start || true
 	# Generate a special virtualbox host key if one doesn't exist yet
-	[ -f ~/.ssh/$(VBOX_NAME) ] || ssh-keygen -t rsa -b 2048 -f $(SSH_IDENTITY) -C $(VBOX_NAME) -P ''
+	[ -f $(SSH_IDENTITY) ] || curl -k https://raw.github.com/mitchellh/vagrant/master/keys/vagrant > $(SSH_IDENTITY)
+	[ -f $(SSH_IDENTITY).pub ] || curl -k https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub > $(SSH_IDENTITY).pub
 	# If there is no ssh config stanza for this virtualbox host yet, then add it
 	grep "Host $(VBOX_NAME)" ~/.ssh/config > /dev/null || \
 	( echo "Host $(VBOX_NAME)"; \
 	  echo "  User root"; \
 	  echo "  HostName localhost"; \
 	  echo "  IdentityFile $(SSH_IDENTITY)"; \
+	  echo "  UserKnownHostsFile /dev/null"; \
+	  echo "  StrictHostKeyChecking no"; \
 	  echo "  port 2223" ) >> ~/.ssh/config
 	echo "Enter '$(ROOT_PASSWORD)' when/if prompted for a password"
 	# Setup root key trust
-	scp $(SSH_IDENTITY).pub $(VBOX_NAME):.ssh/authorized_keys
+	rsync -c $(SSH_IDENTITY).pub $(VBOX_NAME):.ssh/authorized_keys
 	## Install chef on the global domain (wise)
 	#ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 | bunzip2 | tar xf - -C /'
 	## Install pkgin on the global domain (unwise)
 	#ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2013Q3-`uname -p`.tar.gz | gunzip | /usr/bin/tar -xf - -C / && /opt/local/sbin/pkg_admin rebuild && /opt/local/bin/pkgin -y up'
 
-vagrant:
+vagrant: bootstrap_global_domain
 	/Applications/Vagrant/bin/vagrant plugin install --plugin-prerelease --plugin-source https://rubygems.org/ vagrant-smartos
 	/Applications/Vagrant/bin/vagrant box add smartos-dummy https://github.com/joshado/vagrant-smartos/raw/master/example_box/smartos.box || true
 	grep smartos.image_uuid Vagrantfile | cut -d'"' -f2 | xargs -L1 ssh $(VBOX_NAME) imgadm import

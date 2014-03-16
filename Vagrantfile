@@ -12,10 +12,10 @@ Vagrant.configure("2") do |config|
 
     # Required: This is the UUID of the SmartOS image to use for the VMs. 
     # It must already be imported using `imgadm` before running `vagrant up`.
-    smartos.image_uuid = "ff86eb8a-a069-11e3-ae0e-4f3c8983a91c" # this is base64:13.4.0
+    #smartos.image_uuid = "ff86eb8a-a069-11e3-ae0e-4f3c8983a91c" # this is base64:13.4.0
 
     # Optional: The RAM allocation for the machine, defaults to the SmartOS default (256MB)
-    # smartos.ram = 512
+    # smartos.ram = 1024
 
     # Optional: Disk quota for the machine, defaults to the SmartOS default (5G)
     # smartos.quota = 10
@@ -44,12 +44,13 @@ Vagrant.configure("2") do |config|
   # Multi-VMs should be fine, too; they will take the default parameters from above, and you can override
   # specifics for each VM
   #
-  # config.vm.define :box1 do |box|
-  #    box.vm.provider :smartos do |smartos, override|
-  #      smartos.ip_address = "172.16.251.21"
-  #    end
-  # end
-  #
+  config.vm.define :vagrant do |box|
+    box.vm.provider :smartos do |smartos, override|
+      smartos.ram = 1024
+      smartos.image_uuid = "ff86eb8a-a069-11e3-ae0e-4f3c8983a91c" # this is base64:13.4.0
+    end
+  end
+
   # config.vm.define :box2 do |box|
   #    box.vm.provider :smartos do |smartos, override|
   #      smartos.ip_address = "172.16.251.21"

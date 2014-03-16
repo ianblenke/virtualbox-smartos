@@ -109,14 +109,14 @@ bootstrap_global_domain:
 	echo "Enter '$(ROOT_PASSWORD)' when/if prompted for a password"
 	# Setup root key trust
 	scp $(SSH_IDENTITY).pub $(VBOX_NAME):.ssh/authorized_keys
-	# Install chef on the global domain (wise)
-	ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 | bunzip2 | tar xf - -C /'
-	# Install pkgin on the global domain (unwise)
-	ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2013Q3-`uname -p`.tar.gz | gunzip | /usr/bin/tar -xf - -C / && /opt/local/sbin/pkg_admin rebuild && /opt/local/bin/pkgin -y up'
+	## Install chef on the global domain (wise)
+	#ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 | bunzip2 | tar xf - -C /'
+	## Install pkgin on the global domain (unwise)
+	#ssh $(VBOX_NAME) bash -c 'set -x; curl -k http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2013Q3-`uname -p`.tar.gz | gunzip | /usr/bin/tar -xf - -C / && /opt/local/sbin/pkg_admin rebuild && /opt/local/bin/pkgin -y up'
 
-install_vagrant_plugin:
+vagrant:
 	/Applications/Vagrant/bin/vagrant plugin install --plugin-prerelease --plugin-source https://rubygems.org/ vagrant-smartos
-	/Applications/Vagrant/bin/vagrant box add smartos-dummy https://github.com/joshado/vagrant-smartos/raw/master/example_box/smartos.box
-	/Applications/Vagrant/bin/vagrant up
-
+	/Applications/Vagrant/bin/vagrant box add smartos-dummy https://github.com/joshado/vagrant-smartos/raw/master/example_box/smartos.box || true
+	grep smartos.image_uuid Vagrantfile | cut -d'"' -f2 | xargs -L1 ssh $(VBOX_NAME) imgadm import
+	/Applications/Vagrant/bin/vagrant up --provider smartos
 

@@ -1,7 +1,7 @@
 VERSION:=latest
 VBOX_NAME:=smartos-hypervisor
 ZPOOL_VDI:=Zpool.vdi
-ZPOOL_SIZE:=4096
+ZPOOL_SIZE:=10000
 CONTROLLER_NAME:=sata1
 BASE_FOLDER:=$(shell pwd)
 TFTP_ROOT:=$(BASE_FOLDER)/tftp
@@ -96,17 +96,29 @@ dist_clean:
 	make clean || true
 	rm -f package-$(VERSION).tgz tftp $(VBOX_NAME) $(ZPOOL_VDI)
 
-add_host_to_ssh_config:
+bootstrap_global_domain:
+	# Generate a special virtualbox host key if one doesn't exist yet
 	[ -f ~/.ssh/$(VBOX_NAME) ] || ssh-keygen -t rsa -b 2048 -f ~/.ssh/$(VBOX_NAME) -P ''
+	# If there is no ssh config stanza for this virtualbox host yet, then add it
 	grep "Host $(VBOX_NAME)" ~/.ssh/config > /dev/null || \
 	( echo "Host $(VBOX_NAME)"; \
 	  echo "  User root"; \
 	  echo "  HostName localhost; \
 	  echo "  IdentityFile "~/.ssh/$(VBOX_NAME).pub"; \
 	  echo "  port 2223" ) >> ~/.ssh/config
+	echo "Enter '$(ROOT_PASSWORD)' when/if prompted for a password"
+	# Setup root key trust
+	scp -P ~/.ssh/$(VBOX_NAME).pub $(VBOX_NAME):.ssh/authorized_keys
+	# Install chef on the global domain (wise)
+	ssh $(VBOX_NAME) bash -c 'curl -k http://cuddletech.com/smartos/Chef-fatclient-SmartOS-10.14.2.tar.bz2 | bzcat | tar xf - -C /'
+	# Install pkgin on the global domain (unwise)
+	curl -k http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2013Q3-`uname -p`.tar.gz | gzcat | tar -xf - -C /
+	pkg_admin rebuild
+	pkgin -y up
 
 install_vagrant_plugin:
 	/Applications/Vagrant/bin/vagrant plugin install --plugin-prerelease --plugin-source https://rubygems.org/ vagrant-smartos
 	/Applications/Vagrant/bin/vagrant box add smartos-dummy https://github.com/joshado/vagrant-smartos/raw/master/example_box/smartos.box
 	/Applications/Vagrant/bin/vagrant up
+
 
